@@ -40,5 +40,19 @@ public class Coupon {
         return applicationCount;
     }
 
+    //Add business rules
+    public boolean isApplicable(Basket basket) {
+        return !basket.getValue().isLessThan(minBasketValue);
+    }
 
+    public ApplicationResult applyTo(Basket basket) {
+        if (!isApplicable(basket)) {
+            throw new IllegalStateException("Basket value is less than the minimum required for this coupon.");
+        }
+
+        AmountOfMoney newBasketValue = basket.getValue().subtract(discount);
+        Basket discountedBasket = new Basket(newBasketValue);
+
+        return new ApplicationResult(discountedBasket, this);
+    }
 }

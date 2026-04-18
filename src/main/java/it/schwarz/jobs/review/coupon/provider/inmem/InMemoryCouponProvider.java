@@ -63,6 +63,8 @@ public class InMemoryCouponProvider implements CouponProvider {
     @Override
     public void registerCouponApplication(String couponCode) {
         // Intentionally left blank, because it is currently not used
+        //TODO: Implement this method to avoid future bugs when using the in-memory provider for testing.
+        throw new UnsupportedOperationException("Operation not supported yet.");
     }
 
     @Override

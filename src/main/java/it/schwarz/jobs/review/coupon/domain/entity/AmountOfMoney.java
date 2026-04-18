@@ -2,13 +2,13 @@ package it.schwarz.jobs.review.coupon.domain.entity;
 
 import java.math.BigDecimal;
 
-public class AmountOfMoney {
-    public static final AmountOfMoney ZERO = new AmountOfMoney(BigDecimal.ZERO);
-    private final BigDecimal amount;
+/**
+ * Value object representing an amount of money.
+ * It should be a record that encapsulates the amount and provides methods for comparison and conversion.
+ */
 
-    private AmountOfMoney(BigDecimal amount) {
-        this.amount = amount;
-    }
+public record AmountOfMoney(BigDecimal amount) {
+    public static final AmountOfMoney ZERO = new AmountOfMoney(BigDecimal.ZERO);
 
     public static AmountOfMoney of(String amountAsString) {
         return new AmountOfMoney(new BigDecimal(amountAsString));
@@ -28,5 +28,14 @@ public class AmountOfMoney {
 
     public BigDecimal toBigDecimal() {
         return amount;
+    }
+
+    //Business logic needed for calculating amounts, such as addition, subtraction, multiplication, etc.
+    public AmountOfMoney subtract(AmountOfMoney discount) {
+        BigDecimal newAmount = this.amount.subtract(discount.amount);
+        if (newAmount.compareTo(BigDecimal.ZERO) < 0) {
+            return ZERO;
+        }
+        return  new AmountOfMoney(newAmount);
     }
 }

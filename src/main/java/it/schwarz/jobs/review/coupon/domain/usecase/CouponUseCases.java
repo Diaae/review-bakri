@@ -7,6 +7,11 @@ import it.schwarz.jobs.review.coupon.domain.entity.CouponApplications;
 
 import java.util.List;
 
+/**
+ * Whilst @Bean in CouponAppConfig is responsible for wiring the dependencies together,
+ * and @Transactional will be still possible to use via a Spring proxy fron the configCoupon Class,
+ * It is better to move the Transactions logic to a proper Service layer.
+ */
 public class CouponUseCases {
 
     private final CouponProvider couponProvider;
@@ -16,11 +21,7 @@ public class CouponUseCases {
     }
 
     public Coupon createCoupon(Coupon coupon) {
-        try {
             return couponProvider.createCoupon(coupon);
-        } catch (IllegalStateException ex) {
-            throw new CouponAlreadyExistsException(ex.getMessage());
-        }
     }
 
     public List<Coupon> findAllCoupons() {
@@ -37,26 +38,12 @@ public class CouponUseCases {
 
     public ApplicationResult applyCoupon(Basket basket, String couponCode) {
 
-        var basketValue = basket.getValue();
-        var foundCoupon = couponProvider.findById(couponCode);
+        var couponToApply = couponProvider.findById(couponCode)
+                .orElseThrow(() -> new CouponCodeNotFoundException(("Coupon-Code " + couponCode + " not found.")));
 
-        // No Coupon found for given Coupon Code
-        if (foundCoupon.isEmpty()) {
-            throw new CouponCodeNotFoundException("Coupon-Code " + couponCode + " not found.");
-        }
+        //Delegate business logic to the rich domain model entitiy Coupon.
+        ApplicationResult result = couponToApply.applyTo(basket);
 
-        // Basket value must not be less than discount
-        var couponToApply = foundCoupon.get();
-        if (basketValue.isLessThan(couponToApply.getDiscount())) {
-            throw new BasketValueTooLowException(
-                    "The basket value (" + basketValue.toBigDecimal() + ") must not be less than the discount (" + couponToApply.getDiscount().toBigDecimal() + ").");
-        }
-
-        // Basket value must not be less than Coupon's minimal Basket Value
-        if (basketValue.isLessThan(couponToApply.getMinBasketValue())) {
-            throw new BasketValueTooLowException(
-                    "The basket value (" + basketValue.toBigDecimal() + ") must not be less than the min. allowed basket value (" + couponToApply.getMinBasketValue().toBigDecimal() + ").");
-        }
 
         // Register the usage of this coupon
         couponProvider.registerCouponApplication(couponToApply.getCode());

@@ -3,13 +3,18 @@ package it.schwarz.jobs.review.coupon.provider.jpa;
 import it.schwarz.jobs.review.coupon.domain.entity.AmountOfMoney;
 import it.schwarz.jobs.review.coupon.domain.entity.Coupon;
 import it.schwarz.jobs.review.coupon.domain.entity.CouponApplications;
+import it.schwarz.jobs.review.coupon.domain.usecase.CouponAlreadyExistsException;
 import it.schwarz.jobs.review.coupon.domain.usecase.CouponProvider;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Since Low level module JpaCouponProvider is created manually and is not @Bean, @Transactional won't work properly.
+ * Move @Transactional our from here and manage transactions in the service layer
+ * to have a better separation of concerns and to ensure that transactions are properly handled.
+ **/
 public class JpaCouponProvider implements CouponProvider {
 
     private final CouponJpaRepository couponJpaRepository;
@@ -21,20 +26,21 @@ public class JpaCouponProvider implements CouponProvider {
     }
 
     @Override
-    @Transactional
     public Coupon createCoupon(Coupon coupon) {
         if (couponJpaRepository.existsById(coupon.getCode())) {
-            throw new IllegalStateException("Coupon already exists: " + coupon.getCode());
+            throw new CouponAlreadyExistsException("Coupon already exists: " + coupon.getCode());
         }
         var toPersist = domainToJpa(coupon);
         var persisted = couponJpaRepository.save(toPersist);
         return jpaToDomain(persisted);
     }
 
+    //TODO: jpaToDomain leads to N+1 select problem, we should use a custom query to fetch the coupon with the count of applications in one go.
     @Override
     public List<Coupon> findAll() {
-        return couponJpaRepository.findAll().stream()
-                .map(this::jpaToDomain)
+        return couponJpaRepository.findAllWithApplicationCount().stream()
+                //Use projection to avoid loading the entire CouponJpaEntity and its applications, which would lead to N+1 select problem.
+                .map(this::projectionToDomain)
                 .toList();
     }
 
@@ -78,6 +84,16 @@ public class JpaCouponProvider implements CouponProvider {
                 AmountOfMoney.of(couponJpaEntity.getMinBasketValue()),
                 couponJpaEntity.getDescription(),
                 couponJpaEntity.getApplications() == null ? 0 : couponJpaEntity.getApplications().size()
+        );
+    }
+
+    private Coupon projectionToDomain (CouponWithApplicationCount projection) {
+        return new Coupon(
+                projection.getCode(),
+                AmountOfMoney.of(projection.getDiscount()),
+                AmountOfMoney.of(projection.getMinBasketValue()),
+                projection.getDescription(),
+                (int) projection.getApplicationCount()
         );
     }
 

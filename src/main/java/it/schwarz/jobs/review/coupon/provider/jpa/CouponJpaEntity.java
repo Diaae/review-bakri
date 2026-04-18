@@ -19,7 +19,9 @@ public class CouponJpaEntity {
     private BigDecimal minBasketValue;
     @Column(name = "DESCRIPTION", nullable = false, length = 1000)
     private String description;
-    @OneToMany(mappedBy = "couponCode")
+    // Uni-Directional relationship to ApplicationJpaEntity. Ownership is on the CouponJpaEntity side.
+    @OneToMany
+    @JoinColumn(name = "COUPON_CODE", referencedColumnName = "CODE")
     private List<ApplicationJpaEntity> applications;
 
     public CouponJpaEntity() {
